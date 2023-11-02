@@ -16,39 +16,63 @@ exports.getAllContacts = (req, res) => {
 // Controlador para crear un nuevo contacto
 exports.createContact = (req, res) => {
     // Obtener los datos del cuerpo de la solicitud
-    const { rut, nombre, numero, asistencia } = req.body;
+    const { rut, nombre, numero, asistencias } = req.body;
 
     // Crear un nuevo objeto Contact con los datos
-    const newContact = new Contact(rut, nombre, numero, asistencia);
+    const newContact = new Contact(rut, nombre, numero, asistencias || 0);
 
     // Llamar al método estático "create" del modelo Contact
-    Contact.create(newContact, (err) => {
+    // Validar si el rut ya existe
+    Contact.getByRut(rut, (err, contact) => {
         if (err) {
             console.error(err.message);
-            res.status(500).send('Error en el servidor');
+            res.status(500).json('Error en el servidor');
+        } else if (contact) {
+            res.status(400).json('Contacto con rut ya existe');
         } else {
-            res.status(201).send('Contacto creado exitosamente');
+            // Llamar al método "createContact" con una función de callback
+            Contact.createContact(newContact, (err) => {
+                if (err) {
+                    console.error(err.message);
+                    res.status(500).json('Error al crear el contacto');
+                } else {
+                    // Envía una respuesta de éxito al cliente
+                    res.status(201).json(newContact);
+                }
+            });
         }
     });
-};
+}
 
-exports.updateAsistencia = (req, res) => {
+exports.markAttendance = (req, res) => {
     const { rut } = req.params;
-    const { nuevaAsistencia } = req.body;
+    const { nuevaAsistencias } = req.body;
 
-    // Validar que la nuevaAsistencia esté dentro del rango de 1 a 8
-    if (nuevaAsistencia >= 1 && nuevaAsistencia <= 8) {
-        Contact.updateAsistenciaByRut(rut, nuevaAsistencia, (err) => {
-            if (err) {
-                console.error(err.message);
-                res.status(500).send('Error en el servidor');
+    // Obtener el número de asistencias actual del contacto
+    Contact.getAsistenciasByRut(rut, (err, asistenciasActuales) => {
+        if (err) {
+            console.error(err.message);
+            res.status(500).json('Error en el servidor');
+        } else {
+            // Calcular el nuevo número de asistencias sumando las actuales y las nuevas
+            const nuevoTotalAsistencias = asistenciasActuales + nuevaAsistencias;
+            // Validar que el nuevo total esté dentro del rango de 1 a 8
+            if (nuevoTotalAsistencias /*>= 1 && nuevoTotalAsistencias <= 8*/) {
+                // Actualizar el número de asistencias en la base de datos
+                Contact.updateAsistenciasByRut(rut, nuevaAsistencias, (err) => {
+                    if (err) {
+                        console.error(err.message);
+                        res.status(500).json('Error en el servidor');
+                    } else {
+                        // Enviar el número de asistencias actualizado en la respuesta JSON
+                        res.json({ message: 'Asistencias actualizadas exitosamente', asistencias: nuevoTotalAsistencias });
+                    }
+                });
             } else {
-                res.status(200).send('Asistencia actualizada exitosamente');
+                res.status(400).json('El nuevo total de asistencias debe estar en el rango de 1 a 8');
             }
-        });
-    } else {
-        res.status(400).send('La nueva asistencia debe estar en el rango de 1 a 8');
-    }
+        }
+    });
 };
 
 exports.deleteContactByRut = (req, res) => {
@@ -57,9 +81,10 @@ exports.deleteContactByRut = (req, res) => {
     Contact.deleteByRut(rut, (err) => {
         if (err) {
             console.error(err.message);
-            res.status(500).send('Error en el servidor');
+            res.status(500).json('Error en el servidor');
         } else {
-            res.status(200).send('Contacto eliminado exitosamente');
+            res.status(200).json('Contacto eliminado exitosamente');
         }
     });
 };
+
