@@ -88,3 +88,7 @@ exports.deleteContactByRut = (req, res) => {
     });
 };
 
+exports.autencicacionExitosa = (req, res) => {
+    res.status(200).json('Autenticación exitosa');
+};
+

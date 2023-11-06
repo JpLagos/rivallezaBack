@@ -1,48 +1,57 @@
 const express = require('express');
 const router = express.Router();
+const passport = require('passport');
 const contactController = require('../controllers/contactController');
 
 // Ruta para obtener todos los contactos
-router.get('/contacts', contactController.getAllContacts);
+router.get('/contacts', ensureAuthenticated, contactController.getAllContacts);
 router.post('/contacts', contactController.createContact);
 router.put('/contacts/:rut/update-asistencias', contactController.markAttendance);
 router.delete('/contacts/:rut', contactController.deleteContactByRut);
+router.get('/profile', (req, res) => {
+    res.json({ message: 'Autenticado' });
+});
 
-// app.post('/registro', (req, res, next) => {
-//     passport.authenticate('local', {
-//         successRedirect: '/perfil',
-//         failureRedirect: '/registro',
-//         failureFlash: true, // Habilita mensajes flash en caso de falla de autenticación
-//     })(req, res, next);
-// });
+// Ruta para registrar un usuario
+router.post('/registro', (req, res, next) => {
+    passport.authenticate('local', (err, user, info) => {
+        if (err) {
+            // Ocurrió un error en la autenticación, puedes manejarlo aquí
+            return res.status(500).json({ message: 'Error en la autenticación' });
+        }
+        if (!user) {
+            // La autenticación falló, puedes devolver un mensaje de fallo
+            return res.status(401).json({ message: 'Autenticación fallida' });
+        }
+        // La autenticación tuvo éxito, puedes devolver un mensaje de éxito
+        return res.status(200).json({ message: 'Autenticación exitosa' });
+    })(req, res, next);
+});
 
-// app.post('/inicio-sesion', (req, res, next) => {
-//     passport.authenticate('local', {
-//         successRedirect: '/perfil',
-//         failureRedirect: '/inicio-sesion',
-//         failureFlash: true,
-//     })(req, res, next);
-// });
+router.post('/inicio-sesion', passport.authenticate('local', { failWithError: true }),
+    function (req, res) {
+        res.status(200).json({
+            authenticated: req.isAuthenticated()
+        });
+    },
+    function (err, req, res, next) {
+        res.status(400).json({
+            authenticated: req.isAuthenticated(),
+            err: err.message
+        });
+    });
 
-// app.get('/cerrar-sesion', (req, res) => {
-//     req.logout();
-//     res.redirect('/');
-// });
-
-// function ensureAuthenticated(req, res, next) {
-//     if (req.isAuthenticated()) {
-//         return next();
-//     }
-//     res.redirect('/inicio-sesion');
-// }
-
-// app.get('/perfil', ensureAuthenticated, (req, res) => {
-//     res.render('perfil'); // La ruta '/perfil' solo será accesible para usuarios autenticados
-// });
-
-// Otras rutas para crear, actualizar y eliminar contactos
-// router.post('/contacts', contactController.createContact);
-// router.put('/contacts/:id', contactController.updateContact);
-// router.delete('/contacts/:id', contactController.deleteContact);
+// Ruta para cerrar sesión
+router.get('/cerrar-sesion', (req, res) => {
+    req.logout();
+    res.redirect('/');
+});
 
 module.exports = router;
+
+function ensureAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+        return next();
+    }
+    res.status(401).json({ message: 'No estás autenticado' }); // Redirige al usuario a la página de inicio de sesión si no está autenticado
+}
