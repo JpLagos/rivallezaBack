@@ -17,6 +17,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use(cors({
     origin: 'http://localhost:3456',
+    credentials: true,
 }));
 
 // Configura las rutas de la API
